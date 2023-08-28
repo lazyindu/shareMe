@@ -81,13 +81,17 @@ async def start_command(client: Client, message: Message):
 
                 if msg.document or msg.video or msg.audio or msg.photo:
                     file_path = await msg.download()
+                    user_id = message.from_user.id
                     asyncio.create_task(delete_file_after_delay(file_path))
+                    print('Auto Delete for the user is enabled for => User ID : {user_id} \n => Caption : {caption}' )
 
             except FloodWait as e:
                 await asyncio.sleep(e.x)
                 await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
             except:
                 pass
+            user_id = message.from_user.id
+            await client.send_message(int(user_id), f"!Warning : Above files will be deleted in 1 hour \nKindly forward above files to your private folder")
         return
     else:
         reply_markup = InlineKeyboardMarkup(
