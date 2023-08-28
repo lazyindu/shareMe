@@ -5,7 +5,6 @@
 
 import os
 import asyncio
-from asyncio import create_task  # Import create_task function
 from pyrogram import Client, filters, __version__
 from pyrogram.enums import ParseMode
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
@@ -15,7 +14,7 @@ from bot import Bot
 from config import ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT
 from helper_func import subscribed, encode, decode, get_messages
 from database.database import add_user, del_user, full_userbase, present_user
-from plugins.auto_delete import delete_file_after_delay , delete_message_after_delay
+from auto_delete import delete_file_after_delay , delete_message_after_delay
 
 
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
@@ -63,7 +62,8 @@ async def start_command(client: Client, message: Message):
             return
         await temp_msg.delete()
         
-        sent_files = []  # To keep track of sent files
+        lazyfiles = []
+        print(lazyfiles)
         for msg in messages:
             if bool(CUSTOM_CAPTION) & bool(msg.document):
                 caption = CUSTOM_CAPTION.format(previouscaption = "" if not msg.caption else msg.caption.html, filename = msg.document.file_name)
@@ -77,7 +77,7 @@ async def start_command(client: Client, message: Message):
 
             try:
                 sent_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                sent_files.append(sent_msg)  # Add the sent message to the list
+                lazyfiles.append(sent_msg)  # Add the sent message to the list
                 await asyncio.sleep(0.5)
 
                 if msg.document or msg.video or msg.audio or msg.photo:
@@ -88,25 +88,16 @@ async def start_command(client: Client, message: Message):
             except FloodWait as e:
                 await asyncio.sleep(e.x)
                 sent_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                sent_files.append(sent_msg)  # Add the sent message to the list
-
+                lazyfiles.append(sent_msg)  # Add the sent message to the list
             except:
                 pass
         
         # Send a warning message to the user
-        user_id = message.from_user.id
-        warning_msg = await client.send_message(int(user_id), f"Warning: Above files will be deleted in 1 hour. Kindly save them to your private folder.")
-
-
-        # Schedule deletion of the warning message after a delay
-        asyncio.create_task(delete_message_after_delay(client, warning_msg))
-        print('Activated Warning message deletation.......................')
-
-        # Schedule deletion of sent files after a delay
-        for sent_msg in sent_files:
-            asyncio.create_task(delete_message_after_delay(client, sent_msg))
-        print('=====================Activated Deletation for sent files')
-
+        warning_msg = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️❗️❗️❗️❗️❗️--IMPORTANT--❗️❗️❗️❗️️❗️❗️</u></b>\n\nThis Movie Files/Videos will be deleted in <b><u>10 mins</u> 🫥 <i></b>(Due to Copyright Issues)</i>.\n\n<b><i>Please forward this ALL Files/Videos to your Saved Messages and Start Download there</i></b>")
+        await asyncio.sleep(3600)
+        for lazy in lazyfiles:
+            await lazy.delete()
+        await warning_msg.edit_text("<b>Your All Files/Videos is successfully deleted</b>")
         return
 
 
