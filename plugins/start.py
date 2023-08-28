@@ -14,8 +14,7 @@ from bot import Bot
 from config import ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT
 from helper_func import subscribed, encode, decode, get_messages
 from database.database import add_user, del_user, full_userbase, present_user
-from utils.auto_delete import delete_file_after_delay 
-
+from auto_delete import delete_file_after_delay , delete_message_after_delay
 
 
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
@@ -62,9 +61,9 @@ async def start_command(client: Client, message: Message):
             await message.reply_text("Something went wrong..!")
             return
         await temp_msg.delete()
-
+        
+        sent_files = []  # To keep track of sent files
         for msg in messages:
-
             if bool(CUSTOM_CAPTION) & bool(msg.document):
                 caption = CUSTOM_CAPTION.format(previouscaption = "" if not msg.caption else msg.caption.html, filename = msg.document.file_name)
             else:
@@ -76,7 +75,8 @@ async def start_command(client: Client, message: Message):
                 reply_markup = None
 
             try:
-                await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
+                sent_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                sent_files.append(sent_msg)  # Add the sent message to the list
                 await asyncio.sleep(0.5)
 
                 if msg.document or msg.video or msg.audio or msg.photo:
@@ -86,12 +86,29 @@ async def start_command(client: Client, message: Message):
 
             except FloodWait as e:
                 await asyncio.sleep(e.x)
-                await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
+                sent_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                sent_files.append(sent_msg)  # Add the sent message to the list
+
             except:
                 pass
-            user_id = message.from_user.id
-            await client.send_message(int(user_id), f"!Warning : Above files will be deleted in 1 hour \nKindly forward above files to your private folder")
+        
+        # Send a warning message to the user
+        user_id = message.from_user.id
+        warning_msg = await client.send_message(int(user_id), f"Warning: Above files will be deleted in 1 hour. Kindly save them to your private folder.")
+
+
+        # Schedule deletion of the warning message after a delay
+        asyncio.create_task(delete_message_after_delay(client, warning_msg))
+        print('Activated Warning message deletation.......................')
+
+        # Schedule deletion of sent files after a delay
+        for sent_msg in sent_files:
+            asyncio.create_task(delete_message_after_delay(client, sent_msg))
+        print('=====================Activated Deletation for sent files')
+
         return
+
+
     else:
         reply_markup = InlineKeyboardMarkup(
             [
