@@ -83,7 +83,6 @@ async def start_command(client: Client, message: Message):
                     file_path = await msg.download()
                     user_id = message.from_user.id
                     asyncio.create_task(delete_file_after_delay(file_path))
-                    print('Auto Delete for the user is enabled for => User ID : {user_id} \n => Caption : {caption}' )
 
             except FloodWait as e:
                 await asyncio.sleep(e.x)
